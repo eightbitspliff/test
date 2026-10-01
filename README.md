@@ -19,7 +19,7 @@ Synthwave-Gitter, ein neues Farbthema pro Level, Synth-Soundeffekte, Chiptune-Mu
 | Nach oben wischen | Hold |
 | Zurück-Taste | Pause |
 
-Zusätzlich gibt es eine Button-Leiste (◀ ▼ ▶ · HOLD ⤓ · ⟲ ⟳) mit Auto-Repeat.
+Reine Wischsteuerung, keine Buttons: Gesten funktionieren auf dem ganzen Bildschirm.
 
 ## Regeln
 Guideline-Tetris: SRS-Rotation mit Wall-Kicks, 7-Bag, 5er-Vorschau, Hold, Ghost-Piece, Lock-Delay

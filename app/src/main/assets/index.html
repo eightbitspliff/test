@@ -259,20 +259,17 @@ function layout() {
   const st = parseFloat(cs.paddingTop) || 0, sb = parseFloat(cs.paddingBottom) || 0;
   const top = Math.max(st, 26) + 6, bottom = Math.max(sb, 10) + 4;
   const hudH = Math.round(Math.max(56, Math.min(76, H * 0.08)));
-  const minCtrl = 74;
-  let cell = Math.floor(Math.min((W - 20) / (COLS + 3.4), (H - top - hudH - minCtrl - bottom - 30) / ROWS));
+  const hintH = 26;
+  let cell = Math.floor(Math.min((W - 20) / (COLS + 3.4), (H - top - hudH - hintH - bottom - 24) / ROWS));
   cell = Math.max(cell, 10);
   const bw = cell * COLS, bh = cell * ROWS;
   const gap = Math.round(cell * 0.35), sideW = Math.round(cell * 3.05);
   const bx = Math.round((W - (bw + gap + sideW)) / 2);
-  let by = top + hudH + 8;
-  let ctrlTop = by + bh + 14;
-  let ctrlH = H - bottom - ctrlTop;
-  if (ctrlH > 128) { const extra = ctrlH - 128; by += Math.round(extra * 0.35); ctrlTop += Math.round(extra * 0.35); ctrlH = H - bottom - ctrlTop; }
-  LY = { cell, bw, bh, bx, by, gap, sideW, sx: bx + bw + gap, top, hudH, ctrlTop, ctrlH, bottom,
+  const used = hudH + 8 + bh + hintH;
+  const by = top + Math.max(0, Math.round((H - top - bottom - used) / 2)) + hudH + 8;
+  LY = { cell, bw, bh, bx, by, gap, sideW, sx: bx + bw + gap, top, hudH, bottom, hintY: by + bh + 18,
     hudY: by - 8 - hudH };
   spriteCache.clear();
-  buildCtrls();
   initStars();
   if (!deco.length) initDeco();
 }
@@ -826,93 +823,6 @@ function toggleRow(cx, y, w) {
 }
 
 // ====================================================================
-//  Steuer-Buttons (im Spiel)
-// ====================================================================
-let CTRLS = [];
-const ctrlDown = {};
-function buildCtrls() {
-  const groups = [['left', 'soft', 'right'], ['hold', 'hard'], ['ccw', 'cw']];
-  const pad = 10, gs = 6, gg = 14, n = 7;
-  const bwid = (W - 2 * pad - gs * 4 - gg * 2) / n;
-  const h = Math.min(LY.ctrlH - 12, bwid * 1.45, 92);
-  const y = LY.ctrlTop + (LY.ctrlH - h) / 2;
-  CTRLS = [];
-  let x = pad;
-  groups.forEach((grp, gi) => {
-    grp.forEach((id, i) => {
-      CTRLS.push({ id, x, y, w: bwid, h });
-      x += bwid + (i < grp.length - 1 ? gs : 0);
-    });
-    if (gi < groups.length - 1) x += gg;
-  });
-}
-function hitCtrl(px, py) {
-  if (py < LY.ctrlTop - 4) return null;
-  let best = null, bd = 1e9;
-  for (const c of CTRLS) {
-    const d = Math.abs(px - (c.x + c.w / 2));
-    if (d < bd) { bd = d; best = c; }
-  }
-  return best;
-}
-function arrowArc(r, a0, a1, s) {
-  ctx.beginPath(); ctx.arc(0, 0, r, a0, a1); ctx.stroke();
-  const ex = Math.cos(a1) * r, ey = Math.sin(a1) * r;
-  const dx = -Math.sin(a1), dy = Math.cos(a1), nx = Math.cos(a1), ny = Math.sin(a1);
-  ctx.beginPath();
-  ctx.moveTo(ex + dx * s * 0.16, ey + dy * s * 0.16);
-  ctx.lineTo(ex - dx * s * 0.05 + nx * s * 0.14, ey - dy * s * 0.05 + ny * s * 0.14);
-  ctx.lineTo(ex - dx * s * 0.05 - nx * s * 0.14, ey - dy * s * 0.05 - ny * s * 0.14);
-  ctx.closePath(); ctx.fill();
-}
-function drawIcon(id, cx, cy, s) {
-  ctx.save();
-  ctx.translate(cx, cy);
-  ctx.strokeStyle = '#fff'; ctx.fillStyle = '#fff';
-  ctx.lineWidth = Math.max(2.2, s * 0.09); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-  ctx.shadowColor = `hsl(${hue},100%,70%)`; ctx.shadowBlur = 8;
-  switch (id) {
-    case 'right': ctx.scale(-1, 1); // fällt durch
-    case 'left':
-      ctx.beginPath(); ctx.moveTo(-s * 0.26, 0); ctx.lineTo(s * 0.18, -s * 0.27); ctx.lineTo(s * 0.18, s * 0.27); ctx.closePath(); ctx.fill(); break;
-    case 'soft':
-      ctx.beginPath(); ctx.moveTo(-s * 0.24, -s * 0.1); ctx.lineTo(0, s * 0.14); ctx.lineTo(s * 0.24, -s * 0.1); ctx.stroke(); break;
-    case 'hard':
-      ctx.beginPath();
-      ctx.moveTo(-s * 0.22, -s * 0.26); ctx.lineTo(0, -s * 0.06); ctx.lineTo(s * 0.22, -s * 0.26);
-      ctx.moveTo(-s * 0.22, -s * 0.06); ctx.lineTo(0, s * 0.14); ctx.lineTo(s * 0.22, -s * 0.06);
-      ctx.moveTo(-s * 0.26, s * 0.27); ctx.lineTo(s * 0.26, s * 0.27);
-      ctx.stroke(); break;
-    case 'ccw': ctx.scale(-1, 1); // fällt durch
-    case 'cw': arrowArc(s * 0.23, Math.PI * 0.95, Math.PI * 2.3, s); break;
-    case 'hold': text('HOLD', 0, 1, Math.round(s * 0.24), '#fff', 'center', 900, 0, 1); break;
-  }
-  ctx.restore();
-}
-function drawCtrls() {
-  for (const c of CTRLS) {
-    const down = ctrlDown[c.id] > 0;
-    ctx.save();
-    if (down) { ctx.translate(c.x + c.w / 2, c.y + c.h / 2); ctx.scale(0.94, 0.94); ctx.translate(-(c.x + c.w / 2), -(c.y + c.h / 2)); }
-    const hc = c.id === 'hard' ? hue + 160 : c.id === 'cw' || c.id === 'ccw' ? hue + 60 : hue;
-    ctx.shadowColor = `hsla(${hc},100%,60%,${down ? 0.9 : 0.35})`;
-    ctx.shadowBlur = down ? 22 : 10;
-    rr(ctx, c.x, c.y, c.w, c.h, 16);
-    const g = ctx.createLinearGradient(0, c.y, 0, c.y + c.h);
-    g.addColorStop(0, `hsla(${hc},90%,${down ? 55 : 40}%,${down ? 0.55 : 0.28})`);
-    g.addColorStop(1, `hsla(${hc + 30},90%,25%,${down ? 0.45 : 0.2})`);
-    ctx.fillStyle = g; ctx.fill();
-    ctx.shadowBlur = 0;
-    ctx.strokeStyle = `hsla(${hc},100%,80%,${down ? 0.95 : 0.5})`; ctx.lineWidth = 1.5; ctx.stroke();
-    const g2 = ctx.createLinearGradient(0, c.y, 0, c.y + c.h * 0.5);
-    g2.addColorStop(0, 'rgba(255,255,255,0.18)'); g2.addColorStop(1, 'rgba(255,255,255,0)');
-    rr(ctx, c.x + 2, c.y + 2, c.w - 4, c.h * 0.45, 14); ctx.fillStyle = g2; ctx.fill();
-    ctx.restore();
-    drawIcon(c.id, c.x + c.w / 2, c.y + c.h / 2, Math.min(c.w, c.h));
-  }
-}
-
-// ====================================================================
 //  Rendering: Spielfeld & HUD
 // ====================================================================
 function accent(a = 1, l = 65, dh = 0) { return `hsla(${hue + dh},100%,${l}%,${a})`; }
@@ -1111,6 +1021,11 @@ function drawHUD() {
     text(lab, sx + sideW / 2, yy + cell * 0.4, Math.round(cell * 0.45), 'hsl(45,100%,70%)', 'center', 900, 10, 1);
   }
 }
+function drawHint() {
+  if (state !== 'play' || !G || G.time > 12000) return;
+  const a = G.time < 9000 ? 0.55 : 0.55 * (1 - (G.time - 9000) / 3000);
+  text('◂ ▸ wischen  ·  tippen = drehen  ·  ▾ schnell = drop  ·  ▴ = hold', W / 2, LY.hintY, 11, `rgba(255,255,255,${a})`, 'center', 600);
+}
 function fmtTime(ms) { const s = Math.floor(ms / 1000); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); }
 function pauseRect() {
   const s = Math.min(44, LY.hudH * 0.7);
@@ -1296,7 +1211,6 @@ document.addEventListener('visibilitychange', () => { if (document.hidden) windo
 const pointers = new Map();
 function releaseAll() {
   pointers.clear();
-  for (const k in ctrlDown) ctrlDown[k] = 0;
   pressedUI = null;
   if (G) G.soft = false;
 }
@@ -1321,13 +1235,6 @@ cv.addEventListener('pointerdown', e => {
   if (state === 'play') {
     const pr = pauseRect();
     if (inRect(x, y, { x: pr.x - 8, y: pr.y - 8, w: pr.w + 16, h: pr.h + 16 })) { sfx('click'); pauseGame(); return; }
-    const c = hitCtrl(x, y);
-    if (c) {
-      pointers.set(e.pointerId, { kind: 'btn', id: c.id, t: 0, rep: 0, das: false });
-      ctrlDown[c.id] = (ctrlDown[c.id] || 0) + 1;
-      if (c.id === 'soft') { if (G) G.soft = true; } else act(c.id);
-      return;
-    }
     pointers.set(e.pointerId, { kind: 'gest', sx: x, sy: y, ax: x, ay: y, t0: now, axis: null, moved: false, held: false, hist: [[x, y, now]] });
   } else {
     let hit = null;
@@ -1351,7 +1258,7 @@ cv.addEventListener('pointermove', e => {
   }
   if (g.axis === 'v' && Math.abs(x - g.ax) > c * 1.3) g.axis = 'h';
   if (g.axis === 'h') {
-    const step = c * 0.85;
+    const step = c * 0.75;
     while (x - g.ax >= step) { g.ax += step; g.moved = true; act('right'); }
     while (x - g.ax <= -step) { g.ax -= step; g.moved = true; act('left'); }
     if (y < g.ay) g.ay = y;
@@ -1367,10 +1274,7 @@ function endPointer(e, cancel) {
   if (!g) return;
   pointers.delete(e.pointerId);
   const x = e.clientX, y = e.clientY, now = performance.now();
-  if (g.kind === 'btn') {
-    ctrlDown[g.id] = Math.max(0, (ctrlDown[g.id] || 0) - 1);
-    if (g.id === 'soft' && !ctrlDown.soft && G) G.soft = false;
-  } else if (g.kind === 'gest') {
+  if (g.kind === 'gest') {
     if (cancel || state !== 'play') return;
     const h0 = g.hist[0];
     const vy = (y - h0[1]) / Math.max(1, now - h0[2]);
@@ -1388,16 +1292,6 @@ function endPointer(e, cancel) {
 cv.addEventListener('pointerup', e => endPointer(e, false));
 cv.addEventListener('pointercancel', e => endPointer(e, true));
 cv.addEventListener('contextmenu', e => e.preventDefault());
-function inputUpdate(dt) {
-  for (const p of pointers.values()) {
-    if (p.kind !== 'btn' || (p.id !== 'left' && p.id !== 'right')) continue;
-    p.t += dt;
-    if (p.t < DAS) continue;
-    if (!p.das) { p.das = true; p.rep = 0; act(p.id); continue; }
-    p.rep += dt;
-    while (p.rep >= ARR) { p.rep -= ARR; act(p.id); }
-  }
-}
 // Tastatur (für Tests am PC / Bluetooth-Controller)
 const KEYMAP = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'cw', KeyX: 'cw', KeyZ: 'ccw', KeyY: 'ccw', Space: 'hard', KeyC: 'hold', ShiftLeft: 'hold' };
 window.addEventListener('keydown', e => {
@@ -1418,7 +1312,6 @@ let last = performance.now();
 function frame(now) {
   const dt = Math.min(50, Math.max(0, now - last));
   last = now; T += dt;
-  inputUpdate(dt);
   update(dt);
   fxUpdate(dt);
   render(dt);
@@ -1439,7 +1332,7 @@ function render(dt) {
     drawParticles();
     drawPopups();
     ctx.restore();
-    drawCtrls();
+    drawHint();
     if (FX.flash) {
       ctx.globalCompositeOperation = 'lighter';
       ctx.fillStyle = `hsla(${FX.flashHue},100%,80%,${FX.flash * 0.6})`;
